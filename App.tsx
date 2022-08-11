@@ -1,5 +1,11 @@
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Button, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+
+enum MemorizerAction {
+  PLAYING,
+  STOPPED,
+  NONE
+}
 
 const emojis = ["🦜", "🏀", "🍄", "💉", "🧨", "🔮", "💣", "🐸"]
 
@@ -11,11 +17,54 @@ const grid = [
 ]
 
 const App = () => {
+  const [elapsedTime, setElapsedTime] = useState(0)
+  const [action, setAction] = useState(MemorizerAction.NONE)
+  const [running, setRunning] = useState(false)
+  const [intervalId, setIntervalId] = useState(-1)
+
+  const toggleRunning = () =>{
+    setRunning(!running)
+    if (action === MemorizerAction.NONE) {
+      setAction(MemorizerAction.PLAYING)
+    }
+  }
+
+  const startTimer = useCallback(() => {
+		const id = setInterval( () => {
+			setElapsedTime(currentValue => currentValue + 1)
+		}, 1000)
+
+		setIntervalId(id)		
+	}, [])
+
+  const stopTimer = useCallback(() => {
+		clearInterval(intervalId)
+	}, [intervalId])
+
+  useEffect(() => {
+		if (running) {
+			startTimer()
+		} else {
+      restartTimer(MemorizerAction.STOPPED)
+			stopTimer()
+		}
+	}, [running])
+
+  const getTimeFormatted = useCallback(() => {
+    const minutes = Math.floor(elapsedTime / 60).toString()
+    const seconds = (elapsedTime % 60).toString()
+    return `${minutes.padStart(2, '0')}:${seconds.padStart(2, '0')}`
+  }, [elapsedTime])
+
+  	const restartTimer = useCallback((newAction: MemorizerAction) => {
+		setAction(newAction)
+		setElapsedTime(0)
+	}, [])
+
   return (
     <SafeAreaView>
       <Text style={appStyles.title}>Memorizer</Text>
-      <Text style={appStyles.timer}>00:00</Text>
-
+      <Text style={appStyles.timer}>{getTimeFormatted()}</Text>
       <View style={appStyles.container}>
         {
           grid.map((row, index) => (
@@ -31,7 +80,7 @@ const App = () => {
       </View>
 
       <Text style={appStyles.message}>Faltam 99 pares.</Text>
-      <Button color='blue' title="Iniciar" onPress={() => { }} />
+      <Button color='blue' title={running ? 'Reiniciar' : 'Iniciar'} onPress={toggleRunning} />
     </SafeAreaView>
   )
 }
