@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Button, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { Button, FlatList, SafeAreaView, StyleSheet, Text, TouchableWithoutFeedback, View } from 'react-native';
 
 enum MemorizerAction {
   PLAYING,
@@ -9,20 +9,29 @@ enum MemorizerAction {
 
 const emojis = ["🦜", "🏀", "🍄", "💉", "🧨", "🔮", "💣", "🐸"]
 
-const grid = [
-  ["🦜", "🏀", "🍄", "💉"],
-  ["🧨", "🔮", "💣", "🐸"],
-  ["🦜", "🏀", "🍄", "💉"],
-  ["🧨", "🔮", "💣", "🐸"],
-]
+interface MemorizerItem {
+  emoji: string,
+  flipped: boolean,
+  match: boolean,
+}
 
 const App = () => {
   const [elapsedTime, setElapsedTime] = useState(0)
   const [action, setAction] = useState(MemorizerAction.NONE)
   const [running, setRunning] = useState(false)
   const [intervalId, setIntervalId] = useState(-1)
+  const [memorizerGrid, setMemorizerGrid] = useState<MemorizerItem[]>([])
 
-  const toggleRunning = () =>{
+  useEffect(() => {
+    let result: MemorizerItem[] = []
+    emojis.forEach(e => result.push(
+      { emoji: e, flipped: false, match: false },
+      { emoji: e, flipped: false, match: false }
+    ))
+    setMemorizerGrid(_ => result.sort(() => Math.random() - 0.5));
+  }, [])
+
+  const toggleRunning = () => {
     setRunning(!running)
     if (action === MemorizerAction.NONE) {
       setAction(MemorizerAction.PLAYING)
@@ -30,25 +39,25 @@ const App = () => {
   }
 
   const startTimer = useCallback(() => {
-		const id = setInterval( () => {
-			setElapsedTime(currentValue => currentValue + 1)
-		}, 1000)
+    const id = setInterval(() => {
+      setElapsedTime(currentValue => currentValue + 1)
+    }, 1000)
 
-		setIntervalId(id)		
-	}, [])
+    setIntervalId(id)
+  }, [])
 
   const stopTimer = useCallback(() => {
-		clearInterval(intervalId)
-	}, [intervalId])
+    clearInterval(intervalId)
+  }, [intervalId])
 
   useEffect(() => {
-		if (running) {
-			startTimer()
-		} else {
+    if (running) {
+      startTimer()
+    } else {
       restartTimer(MemorizerAction.STOPPED)
-			stopTimer()
-		}
-	}, [running])
+      stopTimer()
+    }
+  }, [running])
 
   const getTimeFormatted = useCallback(() => {
     const minutes = Math.floor(elapsedTime / 60).toString()
@@ -56,29 +65,38 @@ const App = () => {
     return `${minutes.padStart(2, '0')}:${seconds.padStart(2, '0')}`
   }, [elapsedTime])
 
-  	const restartTimer = useCallback((newAction: MemorizerAction) => {
-		setAction(newAction)
-		setElapsedTime(0)
-	}, [])
+  const restartTimer = useCallback((newAction: MemorizerAction) => {
+    setAction(newAction)
+    setElapsedTime(0)
+  }, [])
 
   return (
-    <SafeAreaView>
-      <Text style={appStyles.title}>Memorizer</Text>
-      <Text style={appStyles.timer}>{getTimeFormatted()}</Text>
-      <View style={appStyles.container}>
-        {
-          grid.map((row, index) => (
-            <View key={index} style={appStyles.row}>
-              {row.map(emoji => (
-                <View style={appStyles.item} key={`${index}${emoji}`}>
-                  <Text style={appStyles.item_content}>{emoji}</Text>
-                </View>
-              ))}
-            </View>
-          ))
-        }
+    <SafeAreaView style={appStyles.page}>
+      <View>
+        <Text style={appStyles.title}>Memorizer</Text>
+        <Text style={appStyles.timer}>{getTimeFormatted()}</Text>
       </View>
-
+      <View style={appStyles.container}>
+        <FlatList
+          data={memorizerGrid}
+          keyExtractor={(grid, index) => `${grid}_${index}`}
+          numColumns={4}
+          renderItem={({ item, index }) => (
+            <TouchableWithoutFeedback onPress={() => {
+              let newMemorizerGrid = [...memorizerGrid]
+              newMemorizerGrid[index] = {
+                ...newMemorizerGrid[index],
+                flipped: !newMemorizerGrid[index].flipped
+              }
+              setMemorizerGrid(newMemorizerGrid)
+            }}>
+              <View style={appStyles.item}>
+                <Text style={appStyles.item_content}>{item.flipped ? item.emoji : ""}</Text>
+              </View>
+            </TouchableWithoutFeedback>
+          )}
+        />
+      </View>
       <Text style={appStyles.message}>Faltam 99 pares.</Text>
       <Button color='blue' title={running ? 'Reiniciar' : 'Iniciar'} onPress={toggleRunning} />
     </SafeAreaView>
@@ -86,6 +104,10 @@ const App = () => {
 }
 
 const appStyles = StyleSheet.create({
+  page: {
+    justifyContent: 'space-around',
+    height: "100%"
+  },
   title: {
     fontSize: 32,
     marginTop: 25,
@@ -104,12 +126,8 @@ const appStyles = StyleSheet.create({
     textAlign: 'center',
   },
   container: {
-    flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  row: {
-    flexDirection: 'row'
   },
   item: {
     display: 'flex',
