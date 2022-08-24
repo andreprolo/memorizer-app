@@ -3,37 +3,45 @@ import { Button, FlatList, SafeAreaView, StyleSheet, Text, TouchableWithoutFeedb
 
 enum MemorizerAction {
   PLAYING,
-  STOPPED,
-  NONE
+  WAITING
 }
 
 const emojis = ["🦜", "🏀", "🍄", "💉", "🧨", "🔮", "💣", "🐸"]
 
+enum ItemState {
+  HIDED,
+  VISIBLE,
+  MATCHED,
+}
+
 interface MemorizerItem {
   emoji: string,
-  flipped: boolean,
-  match: boolean,
+  state: ItemState,
 }
 
 const App = () => {
   const [elapsedTime, setElapsedTime] = useState(0)
-  const [action, setAction] = useState(MemorizerAction.NONE)
+  const [action, setAction] = useState(MemorizerAction.WAITING)
   const [running, setRunning] = useState(false)
   const [intervalId, setIntervalId] = useState(-1)
   const [memorizerGrid, setMemorizerGrid] = useState<MemorizerItem[]>([])
 
   useEffect(() => {
+    initializeNewGame()
+  }, [])
+
+  const initializeNewGame = () => {
     let result: MemorizerItem[] = []
     emojis.forEach(e => result.push(
-      { emoji: e, flipped: false, match: false },
-      { emoji: e, flipped: false, match: false }
+      { emoji: e, state: ItemState.HIDED },
+      { emoji: e, state: ItemState.HIDED },
     ))
     setMemorizerGrid(_ => result.sort(() => Math.random() - 0.5));
-  }, [])
+  }
 
   const toggleRunning = () => {
     setRunning(!running)
-    if (action === MemorizerAction.NONE) {
+    if (action === MemorizerAction.WAITING) {
       setAction(MemorizerAction.PLAYING)
     }
   }
@@ -54,8 +62,9 @@ const App = () => {
     if (running) {
       startTimer()
     } else {
-      restartTimer(MemorizerAction.STOPPED)
+      restartTimer(MemorizerAction.WAITING)
       stopTimer()
+      initializeNewGame()
     }
   }, [running])
 
@@ -74,7 +83,7 @@ const App = () => {
     <SafeAreaView style={appStyles.page}>
       <View>
         <Text style={appStyles.title}>Memorizer</Text>
-        <Text style={appStyles.timer}>{getTimeFormatted()}</Text>
+        <Text style={action === MemorizerAction.PLAYING ? appStyles.timer : [appStyles.timer, { color: 'grey' }]}>{getTimeFormatted()}</Text>
       </View>
       <View style={appStyles.container}>
         <FlatList
@@ -83,21 +92,27 @@ const App = () => {
           numColumns={4}
           renderItem={({ item, index }) => (
             <TouchableWithoutFeedback onPress={() => {
+              if (!running) return
               let newMemorizerGrid = [...memorizerGrid]
-              newMemorizerGrid[index] = {
-                ...newMemorizerGrid[index],
-                flipped: !newMemorizerGrid[index].flipped
+              if (newMemorizerGrid[index].state == ItemState.HIDED) {
+                newMemorizerGrid[index] = {
+                  ...newMemorizerGrid[index],
+                  state: ItemState.VISIBLE
+                }
+                setMemorizerGrid(newMemorizerGrid)
               }
-              setMemorizerGrid(newMemorizerGrid)
             }}>
-              <View style={appStyles.item}>
-                <Text style={appStyles.item_content}>{item.flipped ? item.emoji : ""}</Text>
+              <View style={action === MemorizerAction.PLAYING ? appStyles.item : [appStyles.item, { borderColor: 'grey' }]}>
+                {
+                  item.state != ItemState.MATCHED &&
+                  <Text style={appStyles.item_content}>{item.state == ItemState.VISIBLE ? item.emoji : ""}</Text>
+                }
               </View>
             </TouchableWithoutFeedback>
           )}
         />
       </View>
-      <Text style={appStyles.message}>Faltam 99 pares.</Text>
+      <Text style={action === MemorizerAction.PLAYING ? appStyles.message : [appStyles.message, { color: 'grey' }]}>Faltam 8 pares.</Text>
       <Button color='blue' title={running ? 'Reiniciar' : 'Iniciar'} onPress={toggleRunning} />
     </SafeAreaView>
   )
